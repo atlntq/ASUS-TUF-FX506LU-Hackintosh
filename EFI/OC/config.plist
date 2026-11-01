@@ -56,14 +56,6 @@
 			</dict>
 			<dict>
 				<key>Comment</key>
-				<string>SSDT-PMC</string>
-				<key>Enabled</key>
-				<false/>
-				<key>Path</key>
-				<string>SSDT-PMC.aml</string>
-			</dict>
-			<dict>
-				<key>Comment</key>
 				<string>SSDT-PNLF</string>
 				<key>Enabled</key>
 				<true/>
@@ -409,7 +401,7 @@
 				<key>BundlePath</key>
 				<string>Lilu.kext</string>
 				<key>Comment</key>
-				<string>Lilu 1.7.2</string>
+				<string>V1.7.3 | Lilu</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -427,7 +419,7 @@
 				<key>BundlePath</key>
 				<string>VirtualSMC.kext</string>
 				<key>Comment</key>
-				<string>VirtualSMC 1.3.8</string>
+				<string>V1.3.9</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -445,7 +437,7 @@
 				<key>BundlePath</key>
 				<string>WhateverGreen.kext</string>
 				<key>Comment</key>
-				<string>WhateverGreen 1.7.1</string>
+				<string>V1.7.2 | WhateverGreen</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -463,7 +455,7 @@
 				<key>BundlePath</key>
 				<string>AppleALC.kext</string>
 				<key>Comment</key>
-				<string>AppleALC 1.9.8</string>
+				<string>V1.9.9 | AppleALC</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -481,7 +473,7 @@
 				<key>BundlePath</key>
 				<string>SMCProcessor.kext</string>
 				<key>Comment</key>
-				<string>SMCProcessor 1.3.8</string>
+				<string>V1.3.9 | SMCProcessor</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -499,7 +491,7 @@
 				<key>BundlePath</key>
 				<string>SMCBatteryManager.kext</string>
 				<key>Comment</key>
-				<string>SMCBatteryManager 1.3.8</string>
+				<string>V1.3.9 | SMCBatteryManager</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -517,7 +509,7 @@
 				<key>BundlePath</key>
 				<string>ECEnabler.kext</string>
 				<key>Comment</key>
-				<string>ECEnabler 1.0.6</string>
+				<string>V1.0.6 | ECEnabler</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -535,7 +527,7 @@
 				<key>BundlePath</key>
 				<string>VoodooPS2Controller.kext</string>
 				<key>Comment</key>
-				<string>VoodooPS2Controller 2.3.7</string>
+				<string>V2.3.8</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -553,7 +545,7 @@
 				<key>BundlePath</key>
 				<string>VoodooPS2Controller.kext/Contents/PlugIns/VoodooPS2Keyboard.kext</string>
 				<key>Comment</key>
-				<string>VoodooPS2Keyboard 2.3.7</string>
+				<string>V2.3.8</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -571,7 +563,7 @@
 				<key>BundlePath</key>
 				<string>VoodooI2C.kext/Contents/PlugIns/VoodooGPIO.kext</string>
 				<key>Comment</key>
-				<string>VoodooGPIO 1.1</string>
+				<string>V1.1</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -589,7 +581,7 @@
 				<key>BundlePath</key>
 				<string>VoodooI2C.kext/Contents/PlugIns/VoodooI2CServices.kext</string>
 				<key>Comment</key>
-				<string>VoodooI2CServices 1</string>
+				<string>V1</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -607,7 +599,7 @@
 				<key>BundlePath</key>
 				<string>VoodooI2C.kext/Contents/PlugIns/VoodooInput.kext</string>
 				<key>Comment</key>
-				<string>VoodooInput 1.1.6</string>
+				<string>V1.1.7</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -625,7 +617,7 @@
 				<key>BundlePath</key>
 				<string>VoodooI2C.kext</string>
 				<key>Comment</key>
-				<string>VoodooI2C 2.9.1</string>
+				<string>V2.9.1</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -643,7 +635,7 @@
 				<key>BundlePath</key>
 				<string>VoodooI2CHID.kext</string>
 				<key>Comment</key>
-				<string>VoodooI2CHID 1</string>
+				<string>V1</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -659,27 +651,9 @@
 				<key>Arch</key>
 				<string>x86_64</string>
 				<key>BundlePath</key>
-				<string>NVMeFix.kext</string>
-				<key>Comment</key>
-				<string>NVMeFix 1.1.3 - disabled (suspected early-boot panics on this SSD)</string>
-				<key>Enabled</key>
-				<false/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/NVMeFix</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string></string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
 				<string>RealtekRTL8111.kext</string>
 				<key>Comment</key>
-				<string>RealtekRTL8111 3.0.4</string>
+				<string>V3.0.4 | RealtekRTL8111</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -697,7 +671,7 @@
 				<key>BundlePath</key>
 				<string>AirportItlwm.kext</string>
 				<key>Comment</key>
-				<string>AirportItlwm 2.4.0 - laobamac fork, Sequoia build 2.4.0-alpha (7204c69)</string>
+				<string>laobamac AirportItlwm-Sequoia 2.4.0-alpha 7204c69</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -713,27 +687,9 @@
 				<key>Arch</key>
 				<string>x86_64</string>
 				<key>BundlePath</key>
-				<string>itlwm.kext</string>
-				<key>Comment</key>
-				<string>itlwm 2.3.0 - alternative to AirportItlwm, needs HeliPort</string>
-				<key>Enabled</key>
-				<false/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/itlwm</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string></string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
 				<string>BlueToolFixup.kext</string>
 				<key>Comment</key>
-				<string>BlueToolFixup 2.7.2</string>
+				<string>V2.7.2 | BlueToolFixup</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -751,7 +707,7 @@
 				<key>BundlePath</key>
 				<string>IntelBluetoothFirmware.kext</string>
 				<key>Comment</key>
-				<string>IntelBluetoothFirmware 2.4.0</string>
+				<string>V2.4.0 (resmi) | IntelBluetoothFirmware</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -769,7 +725,7 @@
 				<key>BundlePath</key>
 				<string>IntelBTPatcher.kext</string>
 				<key>Comment</key>
-				<string>IntelBTPatcher 2.5.0 - built from OpenIntelWireless master a414375 (Sequoia/Tahoe support)</string>
+				<string>V2.5.0 resmi kaynak a414375 (Release) | IntelBTPatcher</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -787,7 +743,7 @@
 				<key>BundlePath</key>
 				<string>AsusSMC.kext</string>
 				<key>Comment</key>
-				<string>AsusSMC 1.4.1</string>
+				<string>V1.4.1 | AsusSMC</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -805,7 +761,7 @@
 				<key>BundlePath</key>
 				<string>BrightnessKeys.kext</string>
 				<key>Comment</key>
-				<string>BrightnessKeys 1.0.3</string>
+				<string>V1.0.4 | BrightnessKeys</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
@@ -823,11 +779,29 @@
 				<key>BundlePath</key>
 				<string>USBMap.kext</string>
 				<key>Comment</key>
-				<string>USBMap 1.0</string>
+				<string>V1.0 | USBMap</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
 				<string></string>
+				<key>MaxKernel</key>
+				<string></string>
+				<key>MinKernel</key>
+				<string></string>
+				<key>PlistPath</key>
+				<string>Contents/Info.plist</string>
+			</dict>
+			<dict>
+				<key>Arch</key>
+				<string>x86_64</string>
+				<key>BundlePath</key>
+				<string>KBColor.kext</string>
+				<key>Comment</key>
+				<string>Keyboard colour (menu bar app)</string>
+				<key>Enabled</key>
+				<true/>
+				<key>ExecutablePath</key>
+				<string>Contents/MacOS/KBColor</string>
 				<key>MaxKernel</key>
 				<string></string>
 				<key>MinKernel</key>

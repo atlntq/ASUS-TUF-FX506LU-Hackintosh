@@ -4,7 +4,7 @@ OpenCore EFI for the **ASUS TUF Gaming FX506LU**, running **macOS Sequoia 15.5 (
 
 > **Serial numbers, MLB, SystemUUID and ROM have been removed.** You must generate your own before booting — see [First-time setup](#first-time-setup).
 
-> 🇹🇷 **Türkçe özet:** ASUS TUF FX506LU için OpenCore 1.0.8 EFI. macOS Sequoia 15.5'te yerli Wi-Fi (HeliPort'suz), Intel Bluetooth, ses, arka ışık ve tam CPU güç yönetimi çalışıyor. Seri numaraları silindi; kullanmadan önce GenSMBIOS ile kendi `MacBookPro16,3` bilgilerini üretip `PlatformInfo → Generic` altına yazmalısın.
+> 🇹🇷 **Türkçe özet:** ASUS TUF FX506LU için OpenCore 1.0.8 EFI. macOS Sequoia 15.5'te yerli Wi-Fi (HeliPort'suz), Intel Bluetooth, ses, ekran parlaklığı, klavye ışığı (parlaklık ve renk) ve tam CPU güç yönetimi çalışıyor. Seri numaraları silindi; kullanmadan önce GenSMBIOS ile kendi `MacBookPro16,3` bilgilerini üretip `PlatformInfo → Generic` altına yazmalısın.
 
 ---
 
@@ -27,7 +27,7 @@ OpenCore EFI for the **ASUS TUF Gaming FX506LU**, running **macOS Sequoia 15.5 (
 | Webcam | USB2.0 HD UVC WebCam (`13D3:56A2`) | ✅ (image is dark by default; adjust exposure with an app like CameraController) |
 | Battery | — | ✅ Percentage and status |
 | Sleep / wake | S3 | ✅ Lid sleep, wake via lid/power/keyboard |
-| Keyboard backlight control | — | ❌ Level is kept from Windows; not controllable from macOS |
+| Keyboard backlight | RGB (single zone) | ✅ Brightness with Fn+Up/Down and Control Center (smooth dimming); colour from the [KBColor](#keyboard-backlight) menu bar app |
 
 **SMBIOS:** `MacBookPro16,3`
 
@@ -53,18 +53,17 @@ OpenCore EFI for the **ASUS TUF Gaming FX506LU**, running **macOS Sequoia 15.5 (
 | VoodooI2C (+ GPIO, Services, Input), VoodooI2CHID | 2.9.1 | |
 | RealtekRTL8111 | 3.0.4 | |
 | **AirportItlwm** | 2.4.0-alpha (`7204c69`) | **[laobamac/itlwm](https://github.com/laobamac/itlwm)** Sequoia build, limited to Darwin 24.2–24.99 |
-| itlwm | 2.3.0 | disabled — alternative if you prefer HeliPort |
 | BlueToolFixup | 2.7.2 | official (BrcmPatchRAM) |
 | IntelBluetoothFirmware | 2.4.0 | official OpenIntelWireless release |
 | **IntelBTPatcher** | 2.5.0 | **built from OpenIntelWireless master (`a414375`)** — see below |
 | AsusSMC | 1.4.1 | |
 | BrightnessKeys | 1.0.3 | |
 | USBMap | — | ports mapped for this laptop |
-| NVMeFix | 1.1.3 | disabled (suspected cause of early-boot panics on this SSD) |
+| **KBColor** | 1.0.0 | keyboard backlight colour, built from [`KBColor/`](KBColor) |
 
 ### ACPI
 
-`SSDT-AWAC`, `SSDT-EC-USBX`, `SSDT-PLUG`, `SSDT-PNLF`, `SSDT-ALS0`, `SSDT-XOSI` (+ `_OSI` rename), `SSDT-dGPU-Off` (+ `_PTS`/`_WAK`/`EC0._REG` renames), `SSDT-WMNB`, `SSDT-KBLT`. `SSDT-PMC` is present but disabled (not needed on 400-series PCH).
+`SSDT-AWAC`, `SSDT-EC-USBX`, `SSDT-PLUG`, `SSDT-PNLF`, `SSDT-ALS0`, `SSDT-XOSI` (+ `_OSI` rename), `SSDT-dGPU-Off` (+ `_PTS`/`_WAK`/`EC0._REG` renames), `SSDT-WMNB`, `SSDT-KBLT` (keyboard backlight, source in [`KBColor/acpi`](KBColor/acpi/SSDT-KBLT.dsl)).
 
 ---
 
@@ -95,6 +94,25 @@ Before the fix, `bluetoothd` logged `Can't obtain vendorID and productID` and `T
 ### Native Wi-Fi without HeliPort
 The official AirportItlwm has no Sequoia build (Apple changed the IO80211 interfaces). The **laobamac** fork provides a Sequoia build that works with the AX201 out of the box. No OCLP root patches and no SIP changes are needed.
 
+### Keyboard backlight
+The EC on this laptop exposes the keyboard light in its memory-mapped RAM (`ERM2`, base `0xFE708B00`):
+
+| Offset | Meaning |
+|---|---|
+| `0x24` | level, 0 = off … 3 = max |
+| `0x2B`–`0x2D` | static colour R, G, B |
+
+The EC applies writes immediately. `SSDT-KBLT` implements `\_SB.ATKD.SKBV`, which AsusSMC calls for Fn+Up/Down and the Control Center slider. The EC only has 3 levels, so smooth dimming keeps the level at 3 and scales the colour. The colour set in Windows (Armoury Crate) is read at the first change and kept.
+
+To change the colour from macOS:
+
+1. `KBColor.kext` (in the EFI) matches the `KBCD0001` device from `SSDT-KBLT` and accepts a single `Color` property (`0xRRGGBB`). Anything else is rejected.
+2. `KBColor.app` sits in the menu bar with preset colours, a custom colour picker and a *start at login* option. It reapplies the last colour at login.
+
+Unzip [`KBColor/KBColor.app.zip`](KBColor/KBColor.app.zip) into `~/Applications`. The app is ad-hoc signed, so on first launch right-click → **Open**, or build it yourself with `KBColor/build-app.sh`. Building the kext needs Xcode and a [MacKernelSDK](https://github.com/acidanthera/MacKernelSDK) checkout: `MACKERNELSDK=/path/to/MacKernelSDK KBColor/build-kext.sh`.
+
+Lighting effects (breathing, colour cycle) are not supported yet.
+
 ---
 
 ## Known issues
@@ -104,7 +122,7 @@ The official AirportItlwm has no Sequoia build (Apple changed the IO80211 interf
 - **Sleep takes ~30 s to start**: `wifip2pd` times out waiting for AWDL. Harmless.
 - **No audio after a warm restart from Windows.** The Windows Realtek driver leaves the codec in a state macOS doesn't reset. Shut down instead of restarting (with Windows Fast Startup disabled).
 - **Clock is 3 hours off right after boot** if Windows keeps the RTC in local time. Set `RealTimeIsUniversal = 1` in Windows to fix.
-- Occasional **kernel panics in AppleHDA during early boot** were seen during development (`element modified after free`). NVMeFix is disabled while this is being investigated.
+- Occasional **kernel panics in AppleHDA during early boot** were seen during development (`element modified after free`). They stopped after removing NVMeFix, which is no longer in this EFI.
 
 ---
 
@@ -127,7 +145,7 @@ The official AirportItlwm has no Sequoia build (Apple changed the IO80211 interf
 
 ## Credits
 
-[Acidanthera](https://github.com/acidanthera) (OpenCore, Lilu, VirtualSMC, WhateverGreen, AppleALC, BrcmPatchRAM, VoodooPS2, NVMeFix) · [OpenIntelWireless](https://github.com/OpenIntelWireless) (itlwm, IntelBluetoothFirmware) · [laobamac](https://github.com/laobamac/itlwm) (AirportItlwm Sequoia/Tahoe fork) · [VoodooI2C](https://github.com/VoodooI2C/VoodooI2C) · [hieplpvip](https://github.com/hieplpvip/AsusSMC) (AsusSMC) · [1Revenger1](https://github.com/1Revenger1/ECEnabler) (ECEnabler) · [Mieze](https://github.com/Mieze/RTL8111_driver_for_OS_X) (RealtekRTL8111) · [aleelmaitro](https://github.com/aleelmaitro/Intel-wireless-Hackintosh-with-AirportItlwm.kext-and-IntelBluetoothFirmware-on-Sequoia-and-newer) (Bluetooth NVRAM values)
+[Acidanthera](https://github.com/acidanthera) (OpenCore, Lilu, VirtualSMC, WhateverGreen, AppleALC, BrcmPatchRAM, VoodooPS2) · [OpenIntelWireless](https://github.com/OpenIntelWireless) (itlwm, IntelBluetoothFirmware) · [laobamac](https://github.com/laobamac/itlwm) (AirportItlwm Sequoia/Tahoe fork) · [VoodooI2C](https://github.com/VoodooI2C/VoodooI2C) · [hieplpvip](https://github.com/hieplpvip/AsusSMC) (AsusSMC) · [1Revenger1](https://github.com/1Revenger1/ECEnabler) (ECEnabler) · [Mieze](https://github.com/Mieze/RTL8111_driver_for_OS_X) (RealtekRTL8111) · [aleelmaitro](https://github.com/aleelmaitro/Intel-wireless-Hackintosh-with-AirportItlwm.kext-and-IntelBluetoothFirmware-on-Sequoia-and-newer) (Bluetooth NVRAM values)
 
 Each component is distributed under its own license (mostly BSD-3-Clause and GPL-2.0). This repository only collects them in a working configuration.
 
