@@ -27,7 +27,8 @@ OpenCore EFI for the **ASUS TUF Gaming FX506LU**, running **macOS Sequoia 15.5 (
 | Webcam | USB2.0 HD UVC WebCam (`13D3:56A2`) | ✅ (image is dark by default; adjust exposure with an app like CameraController) |
 | Battery | — | ✅ Percentage and status |
 | Sleep / wake | S3 | ✅ Lid sleep, wake via lid/power/keyboard |
-| Keyboard backlight | RGB (single zone) | ✅ Brightness with Fn+Up/Down and Control Center (smooth dimming); colour from the [KBColor](#keyboard-backlight) menu bar app |
+| Keyboard backlight | RGB (single zone) | ✅ Brightness with Fn+Up/Down and Control Center (smooth dimming); colour and a brightness slider in the [KBColor](#keyboard-backlight) menu bar app |
+| Fan mode | Silent / Normal / Turbo | ✅ Fn+F5 or the [KBColor](#fan-mode) menu, with an on-screen HUD; automatic mode by CPU temperature; fan speeds, temperatures and power draw in the menu |
 
 **SMBIOS:** `MacBookPro16,3`
 
@@ -59,11 +60,11 @@ OpenCore EFI for the **ASUS TUF Gaming FX506LU**, running **macOS Sequoia 15.5 (
 | AsusSMC | 1.4.1 | |
 | BrightnessKeys | 1.0.3 | |
 | USBMap | — | ports mapped for this laptop |
-| **KBColor** | 1.0.0 | keyboard backlight colour, built from [`KBColor/`](KBColor) |
+| **KBColor** | 1.1.0 | keyboard backlight colour and fan mode, built from [`KBColor/`](KBColor) |
 
 ### ACPI
 
-`SSDT-AWAC`, `SSDT-EC-USBX`, `SSDT-PLUG`, `SSDT-PNLF`, `SSDT-ALS0`, `SSDT-XOSI` (+ `_OSI` rename), `SSDT-dGPU-Off` (+ `_PTS`/`_WAK`/`EC0._REG` renames), `SSDT-WMNB`, `SSDT-KBLT` (keyboard backlight, source in [`KBColor/acpi`](KBColor/acpi/SSDT-KBLT.dsl)).
+`SSDT-AWAC`, `SSDT-EC-USBX`, `SSDT-PLUG`, `SSDT-PNLF`, `SSDT-ALS0`, `SSDT-XOSI` (+ `_OSI` rename), `SSDT-dGPU-Off` (+ `_PTS`/`_WAK`/`EC0._REG` renames), `SSDT-WMNB`, `SSDT-KBLT` (keyboard backlight, source in [`KBColor/acpi`](KBColor/acpi/SSDT-KBLT.dsl)), `SSDT-FANM` (fan mode, + `EC0._QB5` rename, [source](KBColor/acpi/SSDT-FANM.dsl), must load after `SSDT-KBLT`).
 
 ---
 
@@ -106,12 +107,32 @@ The EC applies writes immediately. `SSDT-KBLT` implements `\_SB.ATKD.SKBV`, whic
 
 To change the colour from macOS:
 
-1. `KBColor.kext` (in the EFI) matches the `KBCD0001` device from `SSDT-KBLT` and accepts a single `Color` property (`0xRRGGBB`). Anything else is rejected.
-2. `KBColor.app` sits in the menu bar with preset colours, a custom colour picker and a *start at login* option. It reapplies the last colour at login.
+1. `KBColor.kext` (in the EFI) matches the `KBCD0001` device from `SSDT-KBLT` and accepts one property per call: `Color` (`0xRRGGBB`), or the fan mode properties described [below](#fan-mode). Anything else is rejected.
+2. `KBColor.app` sits in the menu bar, showing the CPU package temperature instead of an icon. Its *Klavye ışığı* submenu has a brightness slider, preset colours and a custom colour picker; there is also a *start at login* option. It reapplies the last colour at login. The slider uses CoreBrightness, the same path as Control Center and Fn+Up/Down, so all three show the same level.
 
 Unzip [`KBColor/KBColor.app.zip`](KBColor/KBColor.app.zip) into `~/Applications`. The app is ad-hoc signed, so on first launch right-click → **Open**, or build it yourself with `KBColor/build-app.sh`. Building the kext needs Xcode and a [MacKernelSDK](https://github.com/acidanthera/MacKernelSDK) checkout: `MACKERNELSDK=/path/to/MacKernelSDK KBColor/build-kext.sh`.
 
 Lighting effects (breathing, colour cycle) are not supported yet.
+
+### Fan mode
+
+The WMI fan boost call Armoury Crate uses (`DEVS 0x00110018` → `SFBM`) is empty in this DSDT. The mode is kept by the EC:
+
+| EC RAM | Field | Values |
+|---|---|---|
+| `ERAM` (`0xFE708300`) + `0x06` | `EC0.FNGM` | 0 = Normal, 1 = Turbo, 2 = Silent |
+
+`EC0._QDD` updates DPTF (`ODV0`) and NVIDIA Dynamic Boost for a mode change. `SSDT-FANM` adds `GFAN` / `SFAN` / `GRPM` to `\_SB.KBCD`: `SFAN` only writes `FNGM`, which the EC applies by itself (`_QDD` is not called: it notifies DPTF's `IETM`, which is missing on macOS, and the error aborted the caller); `GRPM` returns fan speed as `0x20E6DA / EC0.FRMS` (CPU) or `FRS2` (GPU), the same formula as the DSTS `0x00110013` / `0x00110014` handlers.
+
+Fn+F5 does not change the mode by itself: the EC raises query `0xB5`, and `_QB5` queues ATKD event `0xAE` for Armoury Crate. That queue is shared with AsusSMC, so instead of listening to it, `_QB5` is renamed to `XQB5` and `SSDT-FANM` provides a new `_QB5` that, on macOS, steps Normal → Turbo → Silent and sends `Notify (KBCD, 0x80)`. Other systems still get the original.
+
+`KBColor.kext` accepts a `FanMode` property (0–2) and `ReadFanMode`, which publishes `FanMode`, `CPUFanRPM` and `GPUFanRPM`. On the `0x80` notification it sends `kIOMessageServicePropertyChange`. The menu bar app lists Silent / Normal / Turbo with the current mode ticked and the fan speeds refreshed every second while the menu is open, and shows a HUD like the volume one after every change.
+
+The firmware has no manual fan control: the fan curve / manual fan DSTS IDs (`0x00110021`–`0x00110027`) all return "unsupported" and `SFNM` is empty, so the three EC curves are all there is. *Automatic* control in the app switches between them by CPU package temperature (SMC `TC0P`, smoothed over a few samples): Silent below the lower threshold, Turbo from the upper one, Normal in between, stepping down only 5 °C below a threshold and at most every 10 s. Thresholds are set from the menu (default 60 °C / 80 °C). Picking a mode by hand or pressing Fn+F5 switches back to manual.
+
+The *Sensörler* section shows, refreshed every second while the menu is open: CPU package and per-core temperature (`TC0P`, `TC1C`–`TC4C`), CPU package / core / iGPU power (`PCPR`, `PCPC`, `PCPG`, from SMCProcessor), battery power from `B0AC` × `B0AV` (SMCBatteryManager) and both fan speeds.
+
+macOS has no DPTF driver, so the mode changes the EC fan curve but not the CPU power limits that Windows applies per mode.
 
 ---
 
