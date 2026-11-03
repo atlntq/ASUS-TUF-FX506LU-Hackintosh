@@ -110,7 +110,7 @@ To change the colour from macOS:
 1. `KBColor.kext` (in the EFI) matches the `KBCD0001` device from `SSDT-KBLT` and accepts one property per call: `Color` (`0xRRGGBB`), or the fan mode properties described [below](#fan-mode). Anything else is rejected.
 2. `KBColor.app` sits in the menu bar, showing the CPU package temperature instead of an icon. Its *Klavye ışığı* submenu has a brightness slider, preset colours and a custom colour picker; there is also a *start at login* option. It reapplies the last colour at login. The slider uses CoreBrightness, the same path as Control Center and Fn+Up/Down, so all three show the same level.
 
-Unzip [`KBColor/KBColor.app.zip`](KBColor/KBColor.app.zip) into `~/Applications`. The app is ad-hoc signed, so on first launch right-click → **Open**, or build it yourself with `KBColor/build-app.sh`. Building the kext needs Xcode and a [MacKernelSDK](https://github.com/acidanthera/MacKernelSDK) checkout: `MACKERNELSDK=/path/to/MacKernelSDK KBColor/build-kext.sh`.
+Unzip [`KBColor/KBColor.app.zip`](KBColor/KBColor.app.zip) into `~/Applications`. The app is ad-hoc signed, so macOS blocks it on first launch: open **System Settings → Privacy & Security**, click **Open Anyway** next to KBColor at the bottom and confirm (once). On Sequoia, right-click → **Open** no longer bypasses this. Or build it yourself with `KBColor/build-app.sh`. Building the kext needs Xcode and a [MacKernelSDK](https://github.com/acidanthera/MacKernelSDK) checkout: `MACKERNELSDK=/path/to/MacKernelSDK KBColor/build-kext.sh`.
 
 Lighting effects (breathing, colour cycle) are not supported yet.
 
