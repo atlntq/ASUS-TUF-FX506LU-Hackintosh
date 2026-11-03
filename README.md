@@ -128,6 +128,12 @@ Fn+F5 does not change the mode by itself: the EC raises query `0xB5`, and `_QB5`
 
 `KBColor.kext` accepts a `FanMode` property (0–2) and `ReadFanMode`, which publishes `FanMode`, `CPUFanRPM` and `GPUFanRPM`. On the `0x80` notification it sends `kIOMessageServicePropertyChange`. The menu bar app lists Silent / Normal / Turbo with the current mode ticked and the fan speeds refreshed every second while the menu is open, and shows a HUD like the volume one after every change.
 
+<p>
+  <img src="docs/screenshots/kbcolor-menu.png" alt="KBColor menu: fan control, fan mode and sensors" width="320">
+  <img src="docs/screenshots/kbcolor-keyboard-light.png" alt="Keyboard light submenu with brightness slider and colours" width="420">
+  <img src="docs/screenshots/kbcolor-auto-thresholds.png" alt="Automatic mode thresholds" width="340">
+</p>
+
 The firmware has no manual fan control: the fan curve / manual fan DSTS IDs (`0x00110021`–`0x00110027`) all return "unsupported" and `SFNM` is empty, so the three EC curves are all there is. *Automatic* control in the app switches between them by CPU package temperature (SMC `TC0P`, smoothed over a few samples): Silent below the lower threshold, Turbo from the upper one, Normal in between, stepping down only 5 °C below a threshold and at most every 10 s. Thresholds are set from the menu (default 60 °C / 80 °C). Picking a mode by hand or pressing Fn+F5 switches back to manual.
 
 The *Sensörler* section shows, refreshed every second while the menu is open: CPU package and per-core temperature (`TC0P`, `TC1C`–`TC4C`), CPU package / core / iGPU power (`PCPR`, `PCPC`, `PCPG`, from SMCProcessor), battery power from `B0AC` × `B0AV` (SMCBatteryManager) and both fan speeds.
