@@ -107,6 +107,26 @@ final class SMC {
 
 }
 
+func nvidiaPresent() -> Bool {
+    let svc = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("NVAccel"))
+    guard svc != 0 else { return false }
+    IOObjectRelease(svc)
+    return true
+}
+
+// NVIDIA GPU temperature published by the nullmoth driver (NVAccel's
+// PerformanceStatistics). nil when the driver is not loaded, e.g. with the
+// EFI that turns the dGPU off.
+func nvidiaTemperature() -> Double? {
+    let svc = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("NVAccel"))
+    guard svc != 0 else { return nil }
+    defer { IOObjectRelease(svc) }
+    let v = IORegistryEntryCreateCFProperty(svc, "PerformanceStatistics" as CFString, kCFAllocatorDefault, 0)
+    guard let stats = v?.takeRetainedValue() as? [String: Any],
+          let t = (stats["Temperature(C)"] as? NSNumber)?.doubleValue, t > 0 else { return nil }
+    return t
+}
+
 // Menu rows for the "Sensörler" section.
 func sensorTitles(_ smc: SMC) -> [String] {
     func w(_ v: Double?) -> String { v.map { String(format: "%.1f W", $0) } ?? "—" }
@@ -116,6 +136,11 @@ func sensorTitles(_ smc: SMC) -> [String] {
     if !cores.isEmpty { rows.append("Çekirdekler: " + cores.map { String(format: "%.0f", $0) }.joined(separator: " / ") + " °C") }
     rows.append("CPU gücü: \(w(smc.value("PCPR")))")
     rows.append("Çekirdek: \(w(smc.value("PCPC")))  ·  iGPU: \(w(smc.value("PCPG")))")
+    // Only when the NVIDIA driver is loaded, so the row count stays the same
+    // while the menu is open (the driver does not come and go at runtime).
+    if nvidiaPresent() {
+        rows.append("NVIDIA GPU: \(c(nvidiaTemperature()))")
+    }
     if let ma = smc.value("B0AC"), let mv = smc.value("B0AV") {
         let watts = abs(ma * mv) / 1_000_000
         rows.append(ma < 0 ? String(format: "Pil: %.1f W harcanıyor", watts)
