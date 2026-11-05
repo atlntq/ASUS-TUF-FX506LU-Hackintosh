@@ -8,11 +8,14 @@
 // menu also lists temperatures and power draw read from the SMC keys that
 // SMCProcessor and SMCBatteryManager publish. Keyboard brightness goes through
 // CoreBrightness (the same path as Control Center and Fn+Up/Down, which
-// AsusSMC serves), so all three stay in sync.
+// AsusSMC serves), so all three stay in sync. With the nullmoth NVIDIA driver
+// loaded, "NVIDIA ile aç" opens chosen apps with libnvdefault.dylib, which
+// makes the NVIDIA card their default Metal device.
 
 import AppKit
 import IOKit
 import ServiceManagement
+import UniformTypeIdentifiers
 
 let presets: [(String, UInt32)] = [
     ("Beyaz", 0xFFFFFF), ("Kırmızı", 0xFF0000), ("Turuncu", 0xFF4000),
@@ -343,6 +346,12 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         set { UserDefaults.standard.set(newValue, forKey: "autoHigh") }
     }
 
+    // Bundle paths of the apps listed under "NVIDIA ile aç".
+    var nvApps: [String] {
+        get { UserDefaults.standard.stringArray(forKey: "nvApps") ?? [] }
+        set { UserDefaults.standard.set(newValue, forKey: "nvApps") }
+    }
+
     var current: UInt32 {
         get { UInt32(UserDefaults.standard.integer(forKey: "color")) }
         set { UserDefaults.standard.set(Int(newValue), forKey: "color") }
@@ -497,6 +506,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         liveItems = liveTitles(fans).map { NSMenuItem(title: $0, action: nil, keyEquivalent: "") }
         for mi in liveItems { mi.indentationLevel = 1; m.addItem(mi) }
         m.addItem(.separator())
+        if nvidiaPresent() {
+            m.addItem(nvidiaMenu())
+            m.addItem(.separator())
+        }
         let login = NSMenuItem(title: "Açılışta başlat", action: #selector(toggleLogin), keyEquivalent: "")
         login.target = self
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
@@ -600,6 +613,98 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self.timer = nil
                 if let v = self.pending { self.pending = nil; self.apply(v) }
             }
+        }
+    }
+
+    func appName(_ path: String) -> String {
+        FileManager.default.displayName(atPath: path).replacingOccurrences(of: ".app", with: "")
+    }
+
+    func appIcon(_ path: String) -> NSImage {
+        let i = NSWorkspace.shared.icon(forFile: path)
+        i.size = NSSize(width: 16, height: 16)
+        return i
+    }
+
+    func nvidiaMenu() -> NSMenuItem {
+        let top = NSMenuItem(title: "NVIDIA ile aç", action: nil, keyEquivalent: "")
+        top.image = NSImage(systemSymbolName: "cpu", accessibilityDescription: nil)
+        let sub = NSMenu()
+        let apps = nvApps.filter { FileManager.default.fileExists(atPath: $0) }
+        for path in apps {
+            let mi = NSMenuItem(title: appName(path), action: #selector(openNv(_:)), keyEquivalent: "")
+            mi.target = self; mi.representedObject = path; mi.image = appIcon(path)
+            sub.addItem(mi)
+        }
+        if !apps.isEmpty { sub.addItem(.separator()) }
+        let add = NSMenuItem(title: "Uygulama ekle…", action: #selector(addNvApp), keyEquivalent: "")
+        add.target = self
+        sub.addItem(add)
+        if !apps.isEmpty {
+            let remove = NSMenuItem(title: "Listeden çıkar", action: nil, keyEquivalent: "")
+            let rm = NSMenu()
+            for path in apps {
+                let mi = NSMenuItem(title: appName(path), action: #selector(removeNvApp(_:)), keyEquivalent: "")
+                mi.target = self; mi.representedObject = path; mi.image = appIcon(path)
+                rm.addItem(mi)
+            }
+            remove.submenu = rm
+            sub.addItem(remove)
+        }
+        top.submenu = sub
+        return top
+    }
+
+    @objc func addNvApp() {
+        let p = NSOpenPanel()
+        p.allowedContentTypes = [.application]
+        p.allowsMultipleSelection = true
+        p.directoryURL = URL(fileURLWithPath: "/Applications")
+        p.message = "NVIDIA ekran kartıyla açılacak uygulamaları seçin"
+        NSApp.activate(ignoringOtherApps: true)
+        guard p.runModal() == .OK else { return }
+        var list = nvApps
+        for u in p.urls where !list.contains(u.path) { list.append(u.path) }
+        nvApps = list
+    }
+
+    @objc func removeNvApp(_ s: NSMenuItem) {
+        guard let path = s.representedObject as? String else { return }
+        nvApps = nvApps.filter { $0 != path }
+    }
+
+    // The library only takes effect at launch, so a running copy has to quit first.
+    @objc func openNv(_ s: NSMenuItem) {
+        guard let path = s.representedObject as? String else { return }
+        let running = Bundle(path: path)?.bundleIdentifier.map { NSRunningApplication.runningApplications(withBundleIdentifier: $0) } ?? []
+        if running.isEmpty { launchNv(path); return }
+        NSApp.activate(ignoringOtherApps: true)
+        let a = NSAlert()
+        a.messageText = "\(appName(path)) zaten açık"
+        a.informativeText = "NVIDIA ile açmak için uygulamanın kapatılıp yeniden açılması gerekiyor. Kaydedilmemiş işleriniz varsa önce kaydedin."
+        a.addButton(withTitle: "Kapat ve NVIDIA ile aç")
+        a.addButton(withTitle: "Vazgeç")
+        guard a.runModal() == .alertFirstButtonReturn else { return }
+        running.forEach { $0.terminate() }
+        let deadline = Date().addingTimeInterval(15)
+        let t = Timer(timeInterval: 0.25, repeats: true) { [weak self] t in
+            if running.allSatisfy({ $0.isTerminated }) {
+                t.invalidate(); self?.launchNv(path)
+            } else if Date() > deadline {
+                t.invalidate(); NSSound.beep()
+            }
+        }
+        RunLoop.main.add(t, forMode: .common)
+    }
+
+    func launchNv(_ path: String) {
+        guard let lib = Bundle.main.privateFrameworksURL?.appendingPathComponent("libnvdefault.dylib"),
+              FileManager.default.fileExists(atPath: lib.path) else { NSSound.beep(); return }
+        let c = NSWorkspace.OpenConfiguration()
+        c.environment = ["DYLD_INSERT_LIBRARIES": lib.path]
+        c.activates = true
+        NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path), configuration: c) { _, err in
+            if err != nil { DispatchQueue.main.async { NSSound.beep() } }
         }
     }
 

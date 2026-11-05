@@ -138,6 +138,16 @@ The firmware has no manual fan control: the fan curve / manual fan DSTS IDs (`0x
 
 The *Sensörler* section shows, refreshed every second while the menu is open: CPU package and per-core temperature (`TC0P`, `TC1C`–`TC4C`), CPU package / core / iGPU power (`PCPR`, `PCPC`, `PCPG`, from SMCProcessor), battery power from `B0AC` × `B0AV` (SMCBatteryManager) and both fan speeds. With the NVIDIA EFI and the [nullmoth driver](https://github.com/nullmoth/nvidia-macos-driver) loaded, it also shows the GTX 1660 Ti temperature (`Temperature(C)` from `NVAccel`'s `PerformanceStatistics`); without the driver the row is hidden.
 
+### Open with NVIDIA
+
+With the nullmoth driver loaded, the menu also has **NVIDIA ile aç** (open with NVIDIA). macOS gives every app the GPU that drives the main display as its default Metal device, which on this laptop is the Intel UHD 630 (it stayed Intel even with the HDMI screen as the main display while mirroring), so most games and apps run on Intel. Apps added to this list (*Uygulama ekle…*) are opened with `libnvdefault.dylib` (source: [`KBColor/app/nvdefault.m`](KBColor/app/nvdefault.m)) in `DYLD_INSERT_LIBRARIES`. It interposes `MTLCreateSystemDefaultDevice` and `MTLCopyAllDevices`, so the app's default device is the GTX 1660 Ti and the card is listed first. Without an NVIDIA Metal device it changes nothing.
+
+- The choice only takes effect at launch: if the app is already running, KBColor offers to quit it and open it again.
+- Processes the app starts inherit the setting, so a game started from a launcher opened this way also gets the NVIDIA card.
+- Apps that let you pick the GPU in their own settings, or that ask for the low-power GPU, are not affected.
+- On the internal screen, frames drawn by the NVIDIA card are copied to the Intel GPU that drives the panel, which costs some performance; on the HDMI screen there is no copy.
+- It needs `DYLD_INSERT_LIBRARIES` to be honoured, which the NVIDIA EFI's `amfi_get_out_of_my_way=0x1` allows for signed apps too.
+
 macOS has no DPTF driver, so the mode changes the EC fan curve but not the CPU power limits that Windows applies per mode.
 
 ---
