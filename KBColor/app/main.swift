@@ -10,7 +10,8 @@
 // CoreBrightness (the same path as Control Center and Fn+Up/Down, which
 // AsusSMC serves), so all three stay in sync. With the nullmoth NVIDIA driver
 // loaded, "NVIDIA ile aç" opens chosen apps with libnvdefault.dylib, which
-// makes the NVIDIA card their default Metal device.
+// makes the NVIDIA card their default Metal device (like Optimus); in automatic
+// mode the listed apps get it however they are opened.
 
 import AppKit
 import IOKit
@@ -351,6 +352,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         get { UserDefaults.standard.stringArray(forKey: "nvApps") ?? [] }
         set { UserDefaults.standard.set(newValue, forKey: "nvApps") }
     }
+    var nvAuto: Bool {
+        get { UserDefaults.standard.bool(forKey: "nvAuto") }
+        set { UserDefaults.standard.set(newValue, forKey: "nvAuto") }
+    }
 
     var current: UInt32 {
         get { UInt32(UserDefaults.standard.integer(forKey: "color")) }
@@ -366,6 +371,12 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if saved { _ = setKeyboardColor(current) }
         watchKext()
         if fanAuto { startAuto() }
+        applyNvEnv()
+    }
+
+    func applicationWillTerminate(_ n: Notification) {
+        launchctl(["unsetenv", "DYLD_INSERT_LIBRARIES"])
+        launchctl(["unsetenv", "NVDEFAULT_APPS"])
     }
 
     // The menu bar shows the CPU package temperature, updated every 2 s;
@@ -630,6 +641,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let top = NSMenuItem(title: "NVIDIA ile aç", action: nil, keyEquivalent: "")
         top.image = NSImage(systemSymbolName: "cpu", accessibilityDescription: nil)
         let sub = NSMenu()
+        let auto = NSMenuItem(title: "Otomatik (Dock ve Finder'dan açınca da)", action: #selector(toggleNvAuto), keyEquivalent: "")
+        auto.target = self; auto.state = nvAuto ? .on : .off
+        sub.addItem(auto)
+        sub.addItem(.separator())
         let apps = nvApps.filter { FileManager.default.fileExists(atPath: $0) }
         for path in apps {
             let mi = NSMenuItem(title: appName(path), action: #selector(openNv(_:)), keyEquivalent: "")
@@ -666,11 +681,47 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         var list = nvApps
         for u in p.urls where !list.contains(u.path) { list.append(u.path) }
         nvApps = list
+        applyNvEnv()
     }
 
     @objc func removeNvApp(_ s: NSMenuItem) {
         guard let path = s.representedObject as? String else { return }
         nvApps = nvApps.filter { $0 != path }
+        applyNvEnv()
+    }
+
+    @objc func toggleNvAuto() {
+        nvAuto.toggle()
+        applyNvEnv()
+    }
+
+    var nvLibrary: URL? {
+        guard let u = Bundle.main.privateFrameworksURL?.appendingPathComponent("libnvdefault.dylib"),
+              FileManager.default.fileExists(atPath: u.path) else { return nil }
+        return u
+    }
+
+    @discardableResult
+    func launchctl(_ args: [String]) -> Bool {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        p.arguments = args
+        do { try p.run(); p.waitUntilExit() } catch { return false }
+        return p.terminationStatus == 0
+    }
+
+    // Automatic mode: launchd passes the library to every app it starts from now on; it acts only in the apps whose
+    // bundle IDs are in NVDEFAULT_APPS. Apps already running are not affected. Cleared when the mode is off, the list
+    // is empty, the driver is not loaded, or KBColor quits.
+    func applyNvEnv() {
+        let ids = nvApps.compactMap { Bundle(path: $0)?.bundleIdentifier }
+        if nvAuto, !ids.isEmpty, nvidiaPresent(), let lib = nvLibrary {
+            launchctl(["setenv", "NVDEFAULT_APPS", ids.joined(separator: ":")])
+            launchctl(["setenv", "DYLD_INSERT_LIBRARIES", lib.path])
+        } else {
+            launchctl(["unsetenv", "DYLD_INSERT_LIBRARIES"])
+            launchctl(["unsetenv", "NVDEFAULT_APPS"])
+        }
     }
 
     // The library only takes effect at launch, so a running copy has to quit first.
@@ -698,10 +749,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func launchNv(_ path: String) {
-        guard let lib = Bundle.main.privateFrameworksURL?.appendingPathComponent("libnvdefault.dylib"),
-              FileManager.default.fileExists(atPath: lib.path) else { NSSound.beep(); return }
+        guard let lib = nvLibrary else { NSSound.beep(); return }
         let c = NSWorkspace.OpenConfiguration()
-        c.environment = ["DYLD_INSERT_LIBRARIES": lib.path]
+        c.environment = ["DYLD_INSERT_LIBRARIES": lib.path, "NVDEFAULT_FORCE": "1"]
         c.activates = true
         NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path), configuration: c) { _, err in
             if err != nil { DispatchQueue.main.async { NSSound.beep() } }
