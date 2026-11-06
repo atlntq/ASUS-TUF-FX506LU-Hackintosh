@@ -76,6 +76,7 @@ On macOS 13.4+ the classic `enable-backlight-registers-fix` (`-igfxblr`) leaves 
 ```
 DeviceProperties → PciRoot(0x0)/Pci(0x2,0x0)
     enable-backlight-registers-alternative-fix = 01000000
+    enable-backlight-smoother                 = 01000000   (smooth brightness transitions)
 ```
 
 ### Intel Bluetooth on Sequoia (Address: NULL, toggle keeps spinning)
