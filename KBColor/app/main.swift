@@ -107,15 +107,48 @@ final class SMC {
 
 }
 
+// CPU sensors, sampled in one place at a steady rate. Every read of an
+// SMCProcessor key makes the kext recompute power from the RAPL energy
+// counters (at most every 100 ms), but its per-core threads refresh those
+// counters only every 500 ms. Reads at uneven intervals, such as from several
+// timers, then alternate between 0 W (no new counter value since the last
+// recompute) and an inflated value (500 ms of energy over a short interval).
+// So the CPU keys are read only here, once a second, and power is averaged
+// over the last few samples to even out the 500 ms granularity.
+final class CPUSensors {
+    static let powerKeys = ["PCPR", "PCPC", "PCPG"]
+    static let window = 4
+    let smc: SMC
+    private(set) var package: Double?
+    private(set) var cores: [Double] = []
+    private var history: [String: [Double]] = [:]
+
+    init(_ smc: SMC) { self.smc = smc }
+
+    func sample() {
+        package = smc.value("TC0P")
+        cores = (1...4).compactMap { smc.value("TC\($0)C") }
+        for k in Self.powerKeys {
+            guard let v = smc.value(k) else { history[k] = nil; continue }
+            history[k] = Array((history[k, default: []] + [v]).suffix(Self.window))
+        }
+    }
+
+    func power(_ key: String) -> Double? {
+        guard let h = history[key], !h.isEmpty else { return nil }
+        return h.reduce(0, +) / Double(h.count)
+    }
+}
+
 // Menu rows for the "Sensörler" section.
-func sensorTitles(_ smc: SMC) -> [String] {
+func sensorTitles(_ cpu: CPUSensors, _ smc: SMC) -> [String] {
     func w(_ v: Double?) -> String { v.map { String(format: "%.1f W", $0) } ?? "—" }
     func c(_ v: Double?) -> String { v.map { String(format: "%.0f °C", $0) } ?? "—" }
-    let cores = (1...4).compactMap { smc.value("TC\($0)C") }
-    var rows = ["CPU paketi: \(c(smc.value("TC0P")))"]
+    let cores = cpu.cores
+    var rows = ["CPU paketi: \(c(cpu.package))"]
     if !cores.isEmpty { rows.append("Çekirdekler: " + cores.map { String(format: "%.0f", $0) }.joined(separator: " / ") + " °C") }
-    rows.append("CPU gücü: \(w(smc.value("PCPR")))")
-    rows.append("Çekirdek: \(w(smc.value("PCPC")))  ·  iGPU: \(w(smc.value("PCPG")))")
+    rows.append("CPU gücü: \(w(cpu.power("PCPR")))")
+    rows.append("Çekirdek: \(w(cpu.power("PCPC")))  ·  iGPU: \(w(cpu.power("PCPG")))")
     if let ma = smc.value("B0AC"), let mv = smc.value("B0AV") {
         let watts = abs(ma * mv) / 1_000_000
         rows.append(ma < 0 ? String(format: "Pil: %.1f W harcanıyor", watts)
@@ -301,6 +334,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var levelTimer: Timer?
     var liveTimer: Timer?
     let smc = SMC()
+    lazy var cpu = CPUSensors(smc)
     var autoTimer: Timer?
     var avgTemp: Double?
     var lastAutoChange = Date.distantPast
@@ -334,18 +368,23 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if fanAuto { startAuto() }
     }
 
-    // The menu bar shows the CPU package temperature, updated every 2 s;
-    // the keyboard symbol is the fallback when the SMC key is missing.
+    // Samples the CPU sensors once a second (see CPUSensors) and shows the
+    // package temperature in the menu bar; the keyboard symbol is the
+    // fallback when the SMC key is missing.
     func startTitle() {
-        let t = Timer(timeInterval: 2, repeats: true) { [weak self] _ in self?.updateTitle() }
+        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            self?.cpu.sample()
+            self?.updateTitle()
+        }
         RunLoop.main.add(t, forMode: .common)
         titleTimer = t
+        cpu.sample()
         updateTitle()
     }
 
     func updateTitle() {
         guard let b = item.button else { return }
-        if let t = smc.value("TC0P") {
+        if let t = cpu.package {
             b.image = nil
             b.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
             b.title = String(format: "%.0f°", t)
@@ -373,7 +412,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func autoTick() {
-        guard let t = smc.value("TC0P"), let mode = publishedFans().mode else { return }
+        guard let t = cpu.package, let mode = publishedFans().mode else { return }
         let avg = avgTemp.map { $0 * 0.7 + t * 0.3 } ?? t
         avgTemp = avg
         let next = autoMode(current: mode, temp: avg, low: autoLow, high: autoHigh)
@@ -519,7 +558,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func pick(_ s: NSMenuItem) { apply(UInt32(s.tag)) }
 
     func liveTitles(_ f: FanState) -> [String] {
-        sensorTitles(smc) + [rpmTitle("CPU fanı", f.cpu), rpmTitle("GPU fanı", f.gpu)]
+        sensorTitles(cpu, smc) + [rpmTitle("CPU fanı", f.cpu), rpmTitle("GPU fanı", f.gpu)]
     }
 
     // Picking a mode by hand switches to manual control.

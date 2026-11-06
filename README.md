@@ -60,7 +60,7 @@ OpenCore EFI for the **ASUS TUF Gaming FX506LU**, running **macOS Sequoia 15.5 (
 | AsusSMC | 1.4.1 | |
 | BrightnessKeys | 1.0.3 | |
 | USBMap | — | ports mapped for this laptop |
-| **KBColor** | 1.1.0 | keyboard backlight colour and fan mode, built from [`KBColor/`](KBColor) |
+| **KBColor** | 1.1.1 | keyboard backlight colour and fan mode, built from [`KBColor/`](KBColor) |
 
 ### ACPI
 
