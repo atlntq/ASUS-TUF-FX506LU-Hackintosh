@@ -97,7 +97,7 @@ Before the fix, `bluetoothd` logged `Can't obtain vendorID and productID` and `T
 The official AirportItlwm has no Sequoia build (Apple changed the IO80211 interfaces). The **laobamac** fork provides a Sequoia build that works with the AX201 out of the box. No OCLP root patches and no SIP changes are needed.
 
 ### Wi-Fi 6 (802.11ax)
-The laobamac fork keeps 802.11ax off by default; the boot-arg **`itlwm_he=1`** turns it on (read in `AirportItlwmV2.cpp`). With it, macOS lists `802.11 a/b/g/n/ac/ax` as supported PHY modes and the AX201 joins an ax router at HE MCS 11, 2 spatial streams, 80 MHz — a **1200 Mbps** link rate. Tested on a 5 GHz DFS channel (64): no packet loss to the router over 100 pings. Remove the boot-arg to go back to 802.11ac.
+The laobamac fork keeps 802.11ax off by default; the boot-arg **`itlwm_he=1`** turns it on (read in `AirportItlwmV2.cpp`). With it, macOS lists `802.11 a/b/g/n/ac/ax` as supported PHY modes and the AX201 joins an ax router at HE MCS 11, 2 spatial streams, 80 MHz — a **1200 Mbps** link rate. Tested on a 5 GHz DFS channel (64): no packet loss to the router over 100 pings. After sleep/wake the link comes back on its own in about 8 s, still 802.11ax at 80 MHz (1020–1134 Mbps, 0% loss, 1.7 ms average ping to the router). The rate shown while idle can sit lower (e.g. 735 Mbps); the firmware raises it under load. Remove the boot-arg to go back to 802.11ac.
 
 <p><img src="docs/screenshots/wifi6-ax201-menu.png" alt="Wi-Fi menu (Option-click): PHY mode 802.11ax, 1200 Mb/s, MCS 11, NSS 2, 80 MHz" width="300"></p>
 
