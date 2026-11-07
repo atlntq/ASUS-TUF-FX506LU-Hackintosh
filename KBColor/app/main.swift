@@ -15,6 +15,7 @@
 
 import AppKit
 import IOKit
+import IOKit.ps
 import ServiceManagement
 import UniformTypeIdentifiers
 
@@ -180,10 +181,31 @@ func sensorTitles(_ cpu: CPUSensors, _ smc: SMC) -> [String] {
     }
     if let ma = smc.value("B0AC"), let mv = smc.value("B0AV") {
         let watts = abs(ma * mv) / 1_000_000
-        rows.append(ma < 0 ? String(format: "Pil: %.1f W harcanıyor", watts)
-                    : ma > 0 ? String(format: "Pil: şarj oluyor (%.1f W)", watts) : "Pil: adaptörde")
+        let time = batteryMinutes().map { m in
+            m.toEmpty.map { " · \(hm($0)) kaldı" } ?? m.toFull.map { " · dolmasına \(hm($0))" } ?? ""
+        } ?? ""
+        rows.append(ma < 0 ? String(format: "Pil: %.1f W harcanıyor", watts) + time
+                    : ma > 0 ? String(format: "Pil: şarj oluyor (%.1f W)", watts) + time : "Pil: adaptörde")
     }
     return rows
+}
+
+func hm(_ minutes: Int) -> String { String(format: "%d:%02d", minutes / 60, minutes % 60) }
+
+// macOS's own estimate of the minutes until the battery is empty (on battery)
+// or full (charging), the same figures `pmset -g batt` prints. A value is nil
+// while macOS is still calculating it (-1) or when it does not apply.
+func batteryMinutes() -> (toEmpty: Int?, toFull: Int?)? {
+    guard let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
+          let list = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef] else { return nil }
+    for ps in list {
+        guard let d = IOPSGetPowerSourceDescription(info, ps)?.takeUnretainedValue() as? [String: Any],
+              d[kIOPSTypeKey] as? String == kIOPSInternalBatteryType else { continue }
+        func minutes(_ key: String) -> Int? { (d[key] as? Int).flatMap { $0 > 0 ? $0 : nil } }
+        let charging = d[kIOPSIsChargingKey] as? Bool ?? false
+        return (charging ? nil : minutes(kIOPSTimeToEmptyKey), charging ? minutes(kIOPSTimeToFullChargeKey) : nil)
+    }
+    return nil
 }
 
 // Automatic fan control: Silent below `low`, Turbo from `high`, Normal in

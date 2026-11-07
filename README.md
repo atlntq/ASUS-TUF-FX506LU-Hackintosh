@@ -60,7 +60,7 @@ OpenCore EFI for the **ASUS TUF Gaming FX506LU**, running **macOS Sequoia 15.5 (
 | AsusSMC | 1.4.1 | |
 | BrightnessKeys | 1.0.3 | |
 | USBMap | — | ports mapped for this laptop |
-| **KBColor** | 1.3.1 | keyboard backlight colour and fan mode, built from [`KBColor/`](KBColor) |
+| **KBColor** | 1.4 | keyboard backlight colour and fan mode, built from [`KBColor/`](KBColor) |
 
 ### ACPI
 
@@ -137,7 +137,7 @@ Fn+F5 does not change the mode by itself: the EC raises query `0xB5`, and `_QB5`
 
 The firmware has no manual fan control: the fan curve / manual fan DSTS IDs (`0x00110021`–`0x00110027`) all return "unsupported" and `SFNM` is empty, so the three EC curves are all there is. *Automatic* control in the app switches between them by CPU package temperature (SMC `TC0P`, smoothed over a few samples): Silent below the lower threshold, Turbo from the upper one, Normal in between, stepping down only 5 °C below a threshold and at most every 10 s. Thresholds are set from the menu (default 60 °C / 80 °C). Picking a mode by hand or pressing Fn+F5 switches back to manual.
 
-The *Sensörler* section shows, refreshed every second while the menu is open: CPU package and per-core temperature (`TC0P`, `TC1C`–`TC4C`), CPU package / core / iGPU power (`PCPR`, `PCPC`, `PCPG`, from SMCProcessor), battery power from `B0AC` × `B0AV` (SMCBatteryManager) and both fan speeds. With the NVIDIA EFI and the [nullmoth driver](https://github.com/nullmoth/nvidia-macos-driver) loaded, it also shows the GTX 1660 Ti temperature (`Temperature(C)` from `NVAccel`'s `PerformanceStatistics`); without the driver the row is hidden.
+The *Sensörler* section shows, refreshed every second while the menu is open: CPU package and per-core temperature (`TC0P`, `TC1C`–`TC4C`), CPU package / core / iGPU power (`PCPR`, `PCPC`, `PCPG`, from SMCProcessor), battery power from `B0AC` × `B0AV` (SMCBatteryManager) with the time left until empty or full (macOS's own estimate, as in `pmset -g batt`) and both fan speeds. With the NVIDIA EFI and the [nullmoth driver](https://github.com/nullmoth/nvidia-macos-driver) loaded, it also shows the GTX 1660 Ti temperature (`Temperature(C)` from `NVAccel`'s `PerformanceStatistics`); without the driver the row is hidden.
 
 ### Open with NVIDIA
 
