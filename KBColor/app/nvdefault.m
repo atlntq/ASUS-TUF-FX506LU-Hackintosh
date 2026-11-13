@@ -9,6 +9,7 @@
 // An app it is on for passes NVDEFAULT_FORCE=1 to the processes it starts, so a game started from a launcher gets
 // the NVIDIA card too. With no NVIDIA Metal device it changes nothing.
 #import <Metal/Metal.h>
+#include <os/log.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -34,16 +35,17 @@ __attribute__((constructor)) static void nvdef_init(void)
 {
     const char *force = getenv("NVDEFAULT_FORCE"), *list = getenv("NVDEFAULT_APPS");
     gOn = (force && !strcmp(force, "1")) || (list && *list && listed(list));
-    if (gOn) setenv("NVDEFAULT_FORCE", "1", 1);
+    if (gOn) {
+        setenv("NVDEFAULT_FORCE", "1", 1);
+        os_log(OS_LOG_DEFAULT, "nvdefault: NVIDIA is the default Metal device in %{public}s", getprogname());
+    }
 }
 
 static BOOL isNvidia(id<MTLDevice> d) { return strcasestr(d.name.UTF8String ?: "", "NVIDIA") != NULL; }
 
-// Both return +1 like the Metal functions they replace (Create/Copy rule). Calls made from this library are not
-// interposed, so these reach Metal itself.
-static NSArray<id<MTLDevice>> *nvdef_copy_all(void) NS_RETURNS_RETAINED
+// NVIDIA first; the order is unchanged where the library is off or there is no NVIDIA device.
+static NSArray<id<MTLDevice>> *nvFirst(NSArray<id<MTLDevice>> *all)
 {
-    NSArray<id<MTLDevice>> *all = MTLCopyAllDevices();
     if (!gOn) return all;
     NSUInteger i = [all indexOfObjectPassingTest:^BOOL(id<MTLDevice> d, NSUInteger idx, BOOL *stop) { return isNvidia(d); }];
     if (i == NSNotFound || i == 0) return all;
@@ -52,6 +54,20 @@ static NSArray<id<MTLDevice>> *nvdef_copy_all(void) NS_RETURNS_RETAINED
     [m removeObjectAtIndex:i];
     [m insertObject:nv atIndex:0];
     return m;
+}
+
+// All three return +1 like the Metal functions they replace (Create/Copy rule). Calls made from this library are not
+// interposed, so these reach Metal itself.
+static NSArray<id<MTLDevice>> *nvdef_copy_all(void) NS_RETURNS_RETAINED
+{
+    return nvFirst(MTLCopyAllDevices());
+}
+
+// The variant with a hot-plug observer, which some games (Asphalt 9) use instead of MTLCopyAllDevices.
+static NSArray<id<MTLDevice>> *nvdef_copy_all_observer(id<NSObject> __strong *observer,
+                                                      MTLDeviceNotificationHandler handler) NS_RETURNS_RETAINED
+{
+    return nvFirst(MTLCopyAllDevicesWithObserver(observer, handler));
 }
 
 static id<MTLDevice> nvdef_default(void) NS_RETURNS_RETAINED
@@ -63,4 +79,5 @@ static id<MTLDevice> nvdef_default(void) NS_RETURNS_RETAINED
 }
 
 INTERPOSE(nvdef_copy_all, MTLCopyAllDevices)
+INTERPOSE(nvdef_copy_all_observer, MTLCopyAllDevicesWithObserver)
 INTERPOSE(nvdef_default, MTLCreateSystemDefaultDevice)

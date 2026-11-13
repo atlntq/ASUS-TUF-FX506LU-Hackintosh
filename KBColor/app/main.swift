@@ -428,6 +428,17 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         watchKext()
         if fanAuto { startAuto() }
         applyNvEnv()
+        applyVersionCompat()
+    }
+
+    // NullMoth 2.9 reads the macOS version with kern.osproductversion and creates no Metal device below 15. An app built
+    // with a pre-11 SDK is told "10.16" (SYSTEM_VERSION_COMPAT), so it is refused, and the refusal crashes it inside
+    // Metal as soon as anything enumerates GPUs (IORegistryExplorer 2.1, VideoProc's bundled ffmpeg). With the variable
+    // at 0 in launchd, apps started from now on see the real version. It is left set when KBColor quits: unsetting it
+    // would bring the crashes back for every app opened afterwards. Without the NVIDIA driver nothing is changed.
+    func applyVersionCompat() {
+        guard nvidiaPresent() else { return }
+        launchctl(["setenv", "SYSTEM_VERSION_COMPAT", "0"])
     }
 
     func applicationWillTerminate(_ n: Notification) {
