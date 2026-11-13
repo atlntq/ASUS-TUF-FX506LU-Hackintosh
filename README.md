@@ -4,7 +4,7 @@ OpenCore EFI for the **ASUS TUF Gaming FX506LU**, running **macOS Sequoia 15.5 (
 
 > **Serial numbers, MLB, SystemUUID and ROM have been removed.** You must generate your own before booting — see [First-time setup](#first-time-setup).
 
-> 🇹🇷 **Türkçe özet:** ASUS TUF FX506LU için OpenCore 1.0.8 EFI. macOS Sequoia 15.5'te yerli Wi-Fi (HeliPort'suz), Intel Bluetooth, ses, ekran parlaklığı, klavye ışığı (parlaklık ve renk) ve tam CPU güç yönetimi çalışıyor. Seri numaraları silindi; kullanmadan önce GenSMBIOS ile kendi `MacBookPro16,3` bilgilerini üretip `PlatformInfo → Generic` altına yazmalısın.
+> 🇹🇷 **Türkçe özet:** ASUS TUF FX506LU için OpenCore 1.0.8 EFI. macOS Sequoia 15.5'te yerli Wi-Fi 6 (HeliPort'suz, 802.11ax, 1200 Mbps), Intel Bluetooth, ses, ekran parlaklığı, klavye ışığı (parlaklık ve renk) ve tam CPU güç yönetimi çalışıyor. Seri numaraları silindi; kullanmadan önce GenSMBIOS ile kendi `MacBookPro16,3` bilgilerini üretip `PlatformInfo → Generic` altına yazmalısın.
 
 ---
 
@@ -20,7 +20,7 @@ OpenCore EFI for the **ASUS TUF Gaming FX506LU**, running **macOS Sequoia 15.5 (
 | SSD (macOS) | JAMESDONKEY JD512 512 GB NVMe | ✅ |
 | SSD (Windows) | InnovationIT 512 GB NVMe (Silicon Motion SM2263) | ✅ (not used by macOS) |
 | Audio | Realtek ALC256 (`layout-id` 17) | ✅ Speakers, internal mic, headphone/line-in |
-| Wi-Fi | Intel Wi-Fi 6 AX201 (CNVi, `8086:06F0`) | ✅ Native Wi-Fi via AirportItlwm (menu bar, no HeliPort) |
+| Wi-Fi | Intel Wi-Fi 6 AX201 (CNVi, `8086:06F0`) | ✅ Native Wi-Fi via AirportItlwm (menu bar, no HeliPort), **Wi-Fi 6 (802.11ax) enabled**: 1200 Mbps link at 80 MHz |
 | Bluetooth | Intel AX201 (`8087:0026`) | ✅ On, pairs devices |
 | Ethernet | Realtek RTL8111 | ✅ |
 | Touchpad | ELAN I2C (`04F3:307A`) | ✅ Multi-touch gestures (VoodooI2C) |
@@ -40,7 +40,7 @@ OpenCore EFI for the **ASUS TUF Gaming FX506LU**, running **macOS Sequoia 15.5 (
 - **OpenCore 1.0.8 RELEASE** (official acidanthera build)
 - Graphical boot picker (**OpenCanopy**, theme `Acidanthera\GoldenGate`), only macOS and Windows shown, 5 s timeout
 - `SecureBootModel = Default`, **SIP fully enabled** (`csr-active-config = 00000000`)
-- `boot-args`: `-wegnoegpu`
+- `boot-args`: `-wegnoegpu itlwm_he=1`
 
 ### Kexts
 
@@ -96,6 +96,11 @@ Before the fix, `bluetoothd` logged `Can't obtain vendorID and productID` and `T
 
 ### Native Wi-Fi without HeliPort
 The official AirportItlwm has no Sequoia build (Apple changed the IO80211 interfaces). The **laobamac** fork provides a Sequoia build that works with the AX201 out of the box. No OCLP root patches and no SIP changes are needed.
+
+### Wi-Fi 6 (802.11ax)
+The laobamac fork keeps 802.11ax off by default; the boot-arg **`itlwm_he=1`** turns it on (read in `AirportItlwmV2.cpp`). With it, macOS lists `802.11 a/b/g/n/ac/ax` as supported PHY modes and the AX201 joins an ax router at HE MCS 11, 2 spatial streams, 80 MHz — a **1200 Mbps** link rate. Tested on a 5 GHz DFS channel (64): no packet loss to the router over 100 pings. After sleep/wake the link comes back on its own in about 8 s, still 802.11ax at 80 MHz (1020–1134 Mbps, 0% loss, 1.7 ms average ping to the router). The rate shown while idle can sit lower (e.g. 735 Mbps); the firmware raises it under load. Remove the boot-arg to go back to 802.11ac.
+
+<p><img src="docs/screenshots/wifi6-ax201-menu.png" alt="Wi-Fi menu (Option-click): PHY mode 802.11ax, 1200 Mb/s, MCS 11, NSS 2, 80 MHz" width="300"></p>
 
 ### Keyboard backlight
 The EC on this laptop exposes the keyboard light in its memory-mapped RAM (`ERM2`, base `0xFE708B00`):
@@ -160,7 +165,7 @@ macOS has no DPTF driver, so the mode changes the EC fan curve but not the CPU p
 ## Known issues
 
 - **Wi-Fi sometimes joins 2.4 GHz instead of 5 GHz** when the same SSID is on both bands (open issue in the laobamac fork). Toggling Wi-Fi off/on usually fixes it; separate SSIDs per band fix it permanently.
-- **WPA3-only networks and AirDrop/AWDL** are not supported by the Wi-Fi driver. Wi-Fi 6 (802.11ax) is off by default (`itlwm_he=1` to try it).
+- **WPA3-only networks and AirDrop/AWDL** are not supported by the Wi-Fi driver, so AirDrop, wireless Sidecar, AirPlay to Mac and Apple Watch unlock don't work.
 - **Sleep takes ~30 s to start**: `wifip2pd` times out waiting for AWDL. Harmless.
 - **No audio after a warm restart from Windows.** The Windows Realtek driver leaves the codec in a state macOS doesn't reset. Shut down instead of restarting (with Windows Fast Startup disabled).
 - **Clock is 3 hours off right after boot** if Windows keeps the RTC in local time. Set `RealTimeIsUniversal = 1` in Windows to fix.

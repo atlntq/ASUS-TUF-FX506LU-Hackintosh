@@ -1130,7 +1130,7 @@
 				AAAAAAAAAAAAAAAAAAA=
 				</data>
 				<key>boot-args</key>
-				<string>-wegnoegpu</string>
+				<string>-wegnoegpu itlwm_he=1</string>
 				<key>csr-active-config</key>
 				<data>
 				AAAAAA==
