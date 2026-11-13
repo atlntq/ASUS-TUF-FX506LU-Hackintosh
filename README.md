@@ -17,7 +17,8 @@ OpenCore EFI for the **ASUS TUF Gaming FX506LU**, running **macOS Sequoia 15.5 (
 | dGPU | NVIDIA GeForce GTX 1660 Ti | ❌ Disabled (no macOS driver for Turing) |
 | Display | 15.6" 1920×1080 @ 144 Hz | ✅ Native resolution and refresh rate |
 | RAM | 16 GB | ✅ |
-| SSD (macOS) | InnovationIT 512 GB NVMe (Silicon Motion SM2263) | ✅ |
+| SSD (macOS) | JAMESDONKEY JD512 512 GB NVMe | ✅ |
+| SSD (Windows) | InnovationIT 512 GB NVMe (Silicon Motion SM2263) | ✅ (not used by macOS) |
 | Audio | Realtek ALC256 (`layout-id` 17) | ✅ Speakers, internal mic, headphone/line-in |
 | Wi-Fi | Intel Wi-Fi 6 AX201 (CNVi, `8086:06F0`) | ✅ Native Wi-Fi via AirportItlwm (menu bar, no HeliPort) |
 | Bluetooth | Intel AX201 (`8087:0026`) | ✅ On, pairs devices |
