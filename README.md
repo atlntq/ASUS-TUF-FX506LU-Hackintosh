@@ -19,7 +19,7 @@ OpenCore EFI for the **ASUS TUF Gaming FX506LU**, running **macOS Sequoia 15.5 (
 | RAM | 16 GB | ✅ |
 | SSD (macOS) | JAMESDONKEY JD512 512 GB NVMe | ✅ |
 | SSD (Windows) | InnovationIT 512 GB NVMe (Silicon Motion SM2263) | ✅ (not used by macOS) |
-| Audio | Realtek ALC256 (`layout-id` 17) | ✅ Speakers, internal mic, headphone/line-in |
+| Audio | Realtek ALC256 (`layout-id` 17) | ✅ Speakers, internal mic, headphone/line-in (also after sleep, with CodecCommander) |
 | Wi-Fi | Intel Wi-Fi 6 AX201 (CNVi, `8086:06F0`) | ✅ Native Wi-Fi via AirportItlwm (menu bar, no HeliPort), **Wi-Fi 6 (802.11ax) enabled**: 1200 Mbps link at 80 MHz |
 | Bluetooth | Intel AX201 (`8087:0026`) | ✅ On, pairs devices |
 | Ethernet | Realtek RTL8111 | ✅ |
@@ -50,6 +50,7 @@ OpenCore EFI for the **ASUS TUF Gaming FX506LU**, running **macOS Sequoia 15.5 (
 | VirtualSMC, SMCProcessor, SMCBatteryManager | 1.3.8 | official |
 | WhateverGreen | 1.7.1 | official |
 | AppleALC | 1.9.8 | official |
+| CodecCommander | 2.7.3 | resets the ALC256 and its EAPD after wake, so headphones keep working after sleep |
 | ECEnabler | 1.0.6 | |
 | VoodooPS2Controller (+ Keyboard) | 2.3.7 | |
 | VoodooI2C (+ GPIO, Services, Input), VoodooI2CHID | 2.9.1 | |
