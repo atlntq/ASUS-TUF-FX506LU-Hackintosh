@@ -10,5 +10,10 @@ mkdir -p "$A/Contents/Frameworks"
 xcrun clang -O2 -fobjc-arc -dynamiclib -arch x86_64 -mmacosx-version-min=13.0 -framework Metal -framework Foundation \
   "$E/app/nvdefault.m" -o "$A/Contents/Frameworks/libnvdefault.dylib"
 codesign --force --sign - "$A/Contents/Frameworks/libnvdefault.dylib"
+# NVIDIA sensor reader (nullmoth's nvmtl-smi with a watch mode). It is built against Mesa's NVK RM layer and NVIDIA's
+# headers, which are not in this repo; give its path in NVSENSORS. Without it the menu shows only the GPU temperature.
+NVSENSORS=${NVSENSORS:-$HOME/Hackintosh-Araclar/xlt-tools/nvmtl-smi}
+if [ -x "$NVSENSORS" ]; then cp "$NVSENSORS" "$A/Contents/MacOS/nvsensors"; codesign --force --sign - "$A/Contents/MacOS/nvsensors"
+else echo "note: $NVSENSORS not found, building without NVIDIA sensors"; fi
 codesign --force --sign - "$A"
 echo "built: $A"

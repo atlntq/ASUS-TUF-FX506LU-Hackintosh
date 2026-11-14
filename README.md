@@ -62,7 +62,7 @@ OpenCore EFI for the **ASUS TUF Gaming FX506LU**, running **macOS Sequoia 15.5 (
 | AsusSMC | 1.4.1 | |
 | BrightnessKeys | 1.0.3 | |
 | USBMap | — | ports mapped for this laptop |
-| **KBColor** | 1.4 | keyboard backlight colour and fan mode, built from [`KBColor/`](KBColor) |
+| **KBColor** | 1.5 | keyboard backlight colour and fan mode, built from [`KBColor/`](KBColor) |
 
 ### ACPI
 
@@ -157,6 +157,7 @@ With the nullmoth driver loaded, the menu also has **NVIDIA ile aç** (open with
 - On the internal screen, frames drawn by the NVIDIA card are copied to the Intel GPU that drives the panel, which costs some performance; on the HDMI screen there is no copy.
 - `libnvdefault.dylib` also interposes `MTLCopyAllDevicesWithObserver`, which some games (Asphalt 9) use instead of `MTLCopyAllDevices`.
 - **Old apps and nullmoth 2.9:** nullmoth 2.9 creates no Metal device below macOS 15, and an app built with a pre-11 SDK is told it runs on "10.16". The refusal then crashes the app as soon as anything lists the GPUs (IORegistryExplorer 2.1, VideoProc's bundled ffmpeg, which made VideoProc report hardware encoding as unavailable). With the driver loaded, KBColor sets `SYSTEM_VERSION_COMPAT=0` with `launchctl setenv` at start, so apps opened afterwards see the real version. It stays set when KBColor quits.
+- **NVIDIA sensors:** with the driver loaded, the *Sensörler* section shows the GTX 1660 Ti's temperature, power, graphics/memory clock and load (and video engine load when NVENC/NVDEC is busy), read from NVIDIA's user-shared-data block by a small helper, `Contents/MacOS/nvsensors`. It is nullmoth's `nvmtl-smi` with a watch mode (one line a second) and a read-only mapping (nullmoth 2.9 refuses a writable one); it runs only while the menu is open. It builds against Mesa's NVK RM layer and NVIDIA's headers, so it is not in this repo or in the zip: `build-app.sh` bundles it from `$NVSENSORS` when present. Without it the menu shows the GPU temperature only. Measured at idle: ~1.5–2 W at 300 MHz.
 - It needs `DYLD_INSERT_LIBRARIES` to be honoured, which the NVIDIA EFI's `amfi_get_out_of_my_way=0x1` allows for signed apps too.
 
 macOS has no DPTF driver, so the mode changes the EC fan curve but not the CPU power limits that Windows applies per mode.

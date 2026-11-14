@@ -132,6 +132,52 @@ func nvidiaTemperature() -> Double? {
     return t
 }
 
+// NVIDIA power, clocks and load from the GPU's own sensors (NVIDIA's user-shared-data block), read by the bundled
+// helper `nvsensors` (nullmoth's nvmtl-smi in watch mode: one line a second). It runs only while the menu is open.
+struct NVSample { var temp, power, gfx, mem: Double; var load, memLoad, enc, dec: Int }
+
+final class NVSensors {
+    private var proc: Process?
+    private var buf = Data()
+    private(set) var last: NVSample?
+    static var helper: String? {
+        let p = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/nvsensors").path
+        return FileManager.default.isExecutableFile(atPath: p) ? p : nil
+    }
+
+    func start() {
+        guard proc == nil, let h = Self.helper else { return }
+        let p = Process(); p.executableURL = URL(fileURLWithPath: h); p.arguments = ["-w"]
+        let pipe = Pipe(); p.standardOutput = pipe; p.standardError = FileHandle.nullDevice
+        pipe.fileHandleForReading.readabilityHandler = { [weak self] fh in
+            let d = fh.availableData
+            DispatchQueue.main.async { self?.take(d) }
+        }
+        p.terminationHandler = { [weak self] _ in DispatchQueue.main.async { self?.proc = nil } }
+        do { try p.run(); proc = p } catch { proc = nil }
+    }
+
+    func stop() {
+        if let p = proc {
+            (p.standardOutput as? Pipe)?.fileHandleForReading.readabilityHandler = nil
+            p.terminate()
+        }
+        proc = nil; buf.removeAll()
+    }
+
+    private func take(_ d: Data) {
+        buf.append(d)
+        while let nl = buf.firstIndex(of: 0x0a) {
+            let line = String(decoding: buf[buf.startIndex..<nl], as: UTF8.self)
+            buf.removeSubrange(buf.startIndex...nl)
+            let f = line.split(separator: " ").compactMap { Double($0) }
+            guard f.count == 8 else { continue }
+            last = NVSample(temp: f[0], power: f[1], gfx: f[2], mem: f[3],
+                            load: Int(f[4]), memLoad: Int(f[5]), enc: Int(f[6]), dec: Int(f[7]))
+        }
+    }
+}
+
 // CPU sensors, sampled in one place at a steady rate. Every read of an
 // SMCProcessor key makes the kext recompute power from the RAPL energy
 // counters (at most every 100 ms), but its per-core threads refresh those
@@ -166,7 +212,7 @@ final class CPUSensors {
 }
 
 // Menu rows for the "Sensörler" section.
-func sensorTitles(_ cpu: CPUSensors, _ smc: SMC) -> [String] {
+func sensorTitles(_ cpu: CPUSensors, _ smc: SMC, _ nv: NVSample?) -> [String] {
     func w(_ v: Double?) -> String { v.map { String(format: "%.1f W", $0) } ?? "—" }
     func c(_ v: Double?) -> String { v.map { String(format: "%.0f °C", $0) } ?? "—" }
     let cores = cpu.cores
@@ -177,7 +223,18 @@ func sensorTitles(_ cpu: CPUSensors, _ smc: SMC) -> [String] {
     // Only when the NVIDIA driver is loaded, so the row count stays the same
     // while the menu is open (the driver does not come and go at runtime).
     if nvidiaPresent() {
-        rows.append("NVIDIA GPU: \(c(nvidiaTemperature()))")
+        // Two rows always, so the count does not change when the first helper line arrives.
+        func ok(_ v: Double) -> Double? { v >= 0 ? v : nil }
+        let temp = nv.flatMap { ok($0.temp) } ?? nvidiaTemperature()
+        rows.append("NVIDIA GPU: \(c(temp))  ·  \(w(nv.flatMap { ok($0.power) }))")
+        if let nv, nv.gfx >= 0 {
+            var r = String(format: "Saat: %.0f / %.0f MHz", nv.gfx, nv.mem)
+            if nv.load >= 0 { r += "  ·  yük %\(nv.load)" }
+            if nv.enc > 0 || nv.dec > 0 { r += "  ·  video %\(max(nv.enc, nv.dec))" }
+            rows.append(r)
+        } else {
+            rows.append(NVSensors.helper == nil ? "Saat: — (nvsensors yok)" : "Saat: —")
+        }
     }
     if let ma = smc.value("B0AC"), let mv = smc.value("B0AV") {
         let watts = abs(ma * mv) / 1_000_000
@@ -386,6 +443,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var liveTimer: Timer?
     let smc = SMC()
     lazy var cpu = CPUSensors(smc)
+    let nv = NVSensors()
     var autoTimer: Timer?
     var avgTemp: Double?
     var lastAutoChange = Date.distantPast
@@ -442,6 +500,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationWillTerminate(_ n: Notification) {
+        nv.stop()
         launchctl(["unsetenv", "DYLD_INSERT_LIBRARIES"])
         launchctl(["unsetenv", "NVDEFAULT_APPS"])
     }
@@ -640,7 +699,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func pick(_ s: NSMenuItem) { apply(UInt32(s.tag)) }
 
     func liveTitles(_ f: FanState) -> [String] {
-        sensorTitles(cpu, smc) + [rpmTitle("CPU fanı", f.cpu), rpmTitle("GPU fanı", f.gpu)]
+        sensorTitles(cpu, smc, nv.last) + [rpmTitle("CPU fanı", f.cpu), rpmTitle("GPU fanı", f.gpu)]
     }
 
     // Picking a mode by hand switches to manual control.
@@ -660,6 +719,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // Refresh the sensor rows once a second while the menu is open.
     func menuWillOpen(_ m: NSMenu) {
+        if nvidiaPresent() { nv.start() }
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             guard let self else { return }
             let titles = self.liveTitles(readFans())
@@ -671,6 +731,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuDidClose(_ m: NSMenu) {
+        nv.stop()
         liveTimer?.invalidate()
         liveTimer = nil
     }
